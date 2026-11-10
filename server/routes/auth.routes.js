@@ -1,0 +1,11 @@
+const router = require('express').Router();
+const rateLimit = require('express-rate-limit');
+const { register, login, logout, csrf, me } = require('../controllers/auth.controller');
+const { protect } = require('../middleware/auth.middleware');
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 15, standardHeaders: 'draft-7', legacyHeaders: false, message: { success: false, message: 'Too many attempts. Please wait 15 minutes and try again.' } });
+router.get('/csrf', csrf);
+router.post('/register', authLimiter, register);
+router.post('/login', authLimiter, login);
+router.post('/logout', protect, logout);
+router.get('/me', protect, me);
+module.exports = router;

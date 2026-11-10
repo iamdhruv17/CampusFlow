@@ -1,6 +1,3 @@
-# CampusFlow — Member 1 Complete Starter
-
-This version contains the completed **Member 1: Authentication & User Management** contribution. It is the baseline for Member 2 to clone and extend.
 
 ## Implemented by Member 1
 - Student registration (public registration cannot choose a privileged role).
@@ -13,11 +10,6 @@ This version contains the completed **Member 1: Authentication & User Management
 - Profile viewing and updating, including password change with current-password verification.
 - Responsive React login, registration, dashboard and profile screens.
 
-Create `server/.env` from `server/.env.example`, then set a strong random `JWT_SECRET` (at least 32 characters) and your MongoDB URI. Never commit `.env`.
-
-Run backend and frontend in separate terminals:
-
-Open http://localhost:5173. Backend health check: http://localhost:5000/api/health.
 
 ## API endpoints
 | Method | Endpoint | Purpose | Auth |
@@ -31,18 +23,7 @@ Open http://localhost:5173. Backend health check: http://localhost:5000/api/heal
 | GET | `/api/users/profile` | Read own profile | Yes |
 | PUT | `/api/users/profile` | Update own name/password | Yes + CSRF |
 
-### Registration payload
-```json
-{
-  "name": "Aarav Sharma",
-  "email": "aarav@example.com",
-  "password": "StrongPass123",
-  "branch": "CSE",
-  "year": 3,
-  "section": "A",
-  "rollNumber": "23CSE001"
-}
-```
+
 The server always assigns the `student` role during public registration. Do not add a `role` field to the registration form.
 
 ## Member 2 handover

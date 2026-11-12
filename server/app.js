@@ -8,6 +8,7 @@ app.use(express.json({ limit: '1mb' })); app.use(express.urlencoded({ extended: 
 app.get('/api/health', (_req, res) => res.json({ success: true, message: 'CampusFlow API is running.' }));
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/users', require('./routes/user.routes'));
+app.use('/api/requests', require('./routes/request.routes'));
 app.use((req, res) => res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found.` }));
 app.use(require('./utils/errorHandler'));
 module.exports = app;

@@ -1,0 +1,12 @@
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { requestService } from '../../services/request.service';
+
+const LABELS = { attendance_correction: 'Attendance correction', medical_leave: 'Medical leave', event_participation: 'Event participation', general_academic: 'General academic request' };
+export default function RequestDetailsPage() {
+  const { id } = useParams(); const location = useLocation(); const [request, setRequest] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState('');
+  useEffect(() => { let alive = true; requestService.getById(id).then(({ data }) => { if (alive) setRequest(data.request); }).catch((e) => { if (alive) setError(e.response?.data?.message || 'Unable to load this request.'); }).finally(() => { if (alive) setLoading(false); }); return () => { alive = false; }; }, [id]);
+  if (loading) return <div className="content-page">Loading request…</div>;
+  if (error) return <div className="content-page"><div className="alert error">{error}</div><Link to="/student/requests" className="secondary-link">← Back to requests</Link></div>;
+  return <div className="content-page narrow-page"><Link to="/student/requests" className="back-link">← My requests</Link>{location.state?.notice && <div className="alert success">{location.state.notice}</div>}<div className="page-heading"><span className="eyebrow">REQUEST DETAILS</span><h1>{request.title}</h1><span className={`status-pill status-${request.status}`}>{request.status.replaceAll('_', ' ')}</span></div><section className="detail-card"><dl><div><dt>Category</dt><dd>{LABELS[request.category] || request.category}</dd></div><div><dt>Submitted</dt><dd>{new Date(request.submittedAt || request.createdAt).toLocaleString()}</dd></div><div><dt>Last updated</dt><dd>{new Date(request.updatedAt).toLocaleString()}</dd></div><div><dt>Resubmissions</dt><dd>{request.resubmissionCount || 0}</dd></div></dl><div className="detail-description"><h2>Description</h2><p>{request.description}</p></div>{request.status === 'returned' && <div className="returned-note"><strong>Changes requested</strong><p>Your request has been returned for changes. You can update its details and resubmit it.</p><Link to={`/student/requests/${request._id}/resubmit`} className="primary-link">Edit and resubmit</Link></div>}</section></div>;
+}

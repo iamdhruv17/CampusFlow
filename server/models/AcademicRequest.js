@@ -11,7 +11,10 @@ const academicRequestSchema = new mongoose.Schema({
   lastSubmittedAt: { type: Date, default: Date.now },
   resubmissionCount: { type: Number, default: 0, min: 0 },
   // Reserved for the future approval workflow; not writable through student endpoints.
-  workflow: { type: mongoose.Schema.Types.Mixed, default: undefined, select: false },
+  workflow: {
+    currentStage: { type: String, enum: ['mentor', 'coordinator', 'hod', 'dean', 'completed'], default: 'mentor' },
+    history: [{ actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, actorName: String, actorRole: String, decision: { type: String, enum: ['approved', 'returned', 'rejected'], required: true }, remarks: { type: String, default: '' }, stage: String, decidedAt: { type: Date, default: Date.now } }],
+  },
 }, { timestamps: true });
 
 academicRequestSchema.index({ requester: 1, createdAt: -1 });

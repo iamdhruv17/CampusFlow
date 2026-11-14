@@ -72,3 +72,6 @@ Tests require installed dependencies. The test suite includes Member 1 profile t
 
 ## Next handover
 Member 3 implements faculty and multi-level approval workflow. Preserve current statuses: `submitted`, `under_review`, `returned`, `approved`, `rejected`. Member 2's resubmission endpoint relies on `returned`.
+
+## Member 3 — Faculty Approval Workflow
+Faculty/mentor, coordinator, HOD and Dean users can review assigned requests from the Approvals workspace. Decisions are recorded with remarks and timestamps. Approval advances sequentially through mentor → coordinator → HOD → Dean. Returned and rejected requests stop the current workflow.

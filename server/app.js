@@ -9,6 +9,7 @@ app.get('/api/health', (_req, res) => res.json({ success: true, message: 'Campus
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/requests', require('./routes/request.routes'));
+app.use('/api/approvals', require('./routes/approval.routes'));
 app.use((req, res) => res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found.` }));
 app.use(require('./utils/errorHandler'));
 module.exports = app;

@@ -72,7 +72,7 @@ async function resubmitRequest(req, res, next) {
     // Atomic ownership + returned-status filter prevents editing another student's or active request.
     const request = await AcademicRequest.findOneAndUpdate(
       { _id: req.params.id, requester: req.user._id, status: 'returned' },
-      { $set: { ...result.value, status: 'submitted', lastSubmittedAt: new Date() }, $inc: { resubmissionCount: 1 } },
+      { $set: { ...result.value, status: 'submitted', lastSubmittedAt: new Date(), 'workflow.currentStage': 'mentor' }, $inc: { resubmissionCount: 1 } },
       { new: true, runValidators: true },
     );
     if (!request) {

@@ -1,87 +1,126 @@
-const mongoose = require('mongoose');
-const { AcademicRequest } = require('../models/AcademicRequest');
-const { validateRequestInput } = require('../utils/requestValidation');
+const Request = require('../models/Request');
+const workflowService = require('../services/workflow.service');
+const { sendSuccess, sendError } = require('../utils/apiResponse');
 
-function studentOnly(req, res) {
-  if (req.user?.role !== 'student') {
-    res.status(403).json({ success: false, message: 'Only student accounts can manage student academic requests.' });
-    return false;
+const getAssignedRequest = async (id, user) => {
+  const request = await Request.findById(id);
+  if (!request) return null;
+
+  if (!['pending', 'under_review'].includes(request.status)) {
+    return { completed: true, request };
   }
-  return true;
-}
+  if (
+    !request.currentApproverId ||
+    request.currentApproverId.toString() !== user._id.toString()
+  ) {
+    return { denied: true };
+  }
+  return { request };
+};
 
-async function createRequest(req, res, next) {
+const approveRequest = async (req, res, next) => {
   try {
-    if (!studentOnly(req, res)) return;
-    const result = validateRequestInput(req.body);
-    if (!result.valid) return res.status(400).json({ success: false, message: result.errors.join(' '), errors: result.errors });
-
-    // Requester identity is always derived from the authenticated session, never the request body.
-    const request = await AcademicRequest.create({ ...result.value, requester: req.user._id });
-    return res.status(201).json({ success: true, message: 'Your academic request has been submitted.', request });
-  } catch (error) { next(error); }
-}
-
-async function listMyRequests(req, res, next) {
-  try {
-    if (!studentOnly(req, res)) return;
-    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
-    const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 10));
-    const filter = { requester: req.user._id };
-    if (req.query.status && ['submitted', 'under_review', 'returned', 'approved', 'rejected'].includes(req.query.status)) filter.status = req.query.status;
-    const [requests, total] = await Promise.all([
-      AcademicRequest.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
-      AcademicRequest.countDocuments(filter),
-    ]);
-    return res.json({ success: true, requests, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
-  } catch (error) { next(error); }
-}
-
-async function getRequestSummary(req, res, next) {
-  try {
-    if (!studentOnly(req, res)) return;
-    const rows = await AcademicRequest.aggregate([
-      { $match: { requester: new mongoose.Types.ObjectId(req.user._id) } },
-      { $group: { _id: '$status', count: { $sum: 1 } } },
-    ]);
-    const summary = { total: 0, submitted: 0, under_review: 0, returned: 0, approved: 0, rejected: 0 };
-    for (const row of rows) { summary[row._id] = row.count; summary.total += row.count; }
-    return res.json({ success: true, summary });
-  } catch (error) { next(error); }
-}
-
-async function getRequestById(req, res, next) {
-  try {
-    if (!studentOnly(req, res)) return;
-    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid request identifier.' });
-    const request = await AcademicRequest.findOne({ _id: req.params.id, requester: req.user._id }).lean();
-    if (!request) return res.status(404).json({ success: false, message: 'Request not found.' });
-    return res.json({ success: true, request });
-  } catch (error) { next(error); }
-}
-
-async function resubmitRequest(req, res, next) {
-  try {
-    if (!studentOnly(req, res)) return;
-    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid request identifier.' });
-    const unexpected = Object.keys(req.body || {}).filter((key) => !['category', 'title', 'description'].includes(key));
-    if (unexpected.length) return res.status(400).json({ success: false, message: 'Only category, title and description can be updated when resubmitting.' });
-    const result = validateRequestInput(req.body);
-    if (!result.valid) return res.status(400).json({ success: false, message: result.errors.join(' '), errors: result.errors });
-
-    // Atomic ownership + returned-status filter prevents editing another student's or active request.
-    const request = await AcademicRequest.findOneAndUpdate(
-      { _id: req.params.id, requester: req.user._id, status: 'returned' },
-      { $set: { ...result.value, status: 'submitted', lastSubmittedAt: new Date(), 'workflow.currentStage': 'mentor' }, $inc: { resubmissionCount: 1 } },
-      { new: true, runValidators: true },
-    );
-    if (!request) {
-      const owned = await AcademicRequest.exists({ _id: req.params.id, requester: req.user._id });
-      if (!owned) return res.status(404).json({ success: false, message: 'Request not found.' });
-      return res.status(409).json({ success: false, message: 'Only returned requests can be resubmitted.' });
+    const result = await getAssignedRequest(req.params.id, req.user);
+    if (!result) return sendError(res, 404, 'Request not found.');
+    if (result.denied) {
+      return sendError(res, 403, 'You are not authorized to approve this request.');
     }
-    return res.json({ success: true, message: 'Your request has been resubmitted.', request });
-  } catch (error) { next(error); }
-}
+    if (result.completed) {
+      return sendError(res, 400, `Request is already ${result.request.status}.`);
+    }
 
-module.exports = { createRequest, listMyRequests, getRequestSummary, getRequestById, resubmitRequest };
+    const updated = await workflowService.processApprove(
+      result.request,
+      req.user,
+      typeof req.body?.remarks === 'string' ? req.body.remarks.trim() : ''
+    );
+    const populated = await Request.findById(updated._id)
+      .populate('requesterId', 'name email')
+      .populate('currentApproverId', 'name role');
+    sendSuccess(res, 200, 'Request approved.', { request: populated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const rejectRequest = async (req, res, next) => {
+  try {
+    const result = await getAssignedRequest(req.params.id, req.user);
+    if (!result) return sendError(res, 404, 'Request not found.');
+    if (result.denied) {
+      return sendError(res, 403, 'You are not authorized to reject this request.');
+    }
+    if (result.completed) {
+      return sendError(res, 400, `Request is already ${result.request.status}.`);
+    }
+    if (typeof req.body?.remarks !== 'string' || req.body.remarks.trim() === '') {
+      return sendError(res, 400, 'Remarks are required when rejecting a request.');
+    }
+
+    const updated = await workflowService.processReject(
+      result.request,
+      req.user,
+      req.body.remarks.trim()
+    );
+    const populated = await Request.findById(updated._id)
+      .populate('requesterId', 'name email')
+      .populate('currentApproverId', 'name role');
+    sendSuccess(res, 200, 'Request rejected.', { request: populated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const returnRequest = async (req, res, next) => {
+  try {
+    const result = await getAssignedRequest(req.params.id, req.user);
+    if (!result) return sendError(res, 404, 'Request not found.');
+    if (result.denied) {
+      return sendError(res, 403, 'You are not authorized to return this request.');
+    }
+    if (result.completed) {
+      return sendError(res, 400, `Request is already ${result.request.status}.`);
+    }
+    if (typeof req.body?.remarks !== 'string' || req.body.remarks.trim() === '') {
+      return sendError(res, 400, 'Remarks are required when returning a request.');
+    }
+
+    const updated = await workflowService.processReturn(
+      result.request,
+      req.user,
+      req.body.remarks.trim()
+    );
+    const populated = await Request.findById(updated._id)
+      .populate('requesterId', 'name email')
+      .populate('currentApproverId', 'name role');
+    sendSuccess(res, 200, 'Request returned for correction.', { request: populated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const escalateRequest = async (req, res, next) => {
+  try {
+    const result = await getAssignedRequest(req.params.id, req.user);
+    if (!result) return sendError(res, 404, 'Request not found.');
+    if (result.denied) return sendError(res, 403, 'You are not authorized to escalate this request.');
+    if (result.completed) return sendError(res, 409, `Request is already ${result.request.status}.`);
+    if (typeof req.body?.remarks !== 'string' || req.body.remarks.trim() === '') {
+      return sendError(res, 400, 'Remarks are required when escalating a grievance.');
+    }
+
+    const updated = await workflowService.processEscalate(
+      result.request,
+      req.user,
+      req.body.remarks.trim()
+    );
+    const populated = await Request.findById(updated._id)
+      .populate('requesterId', 'name email')
+      .populate('currentApproverId', 'name role');
+    sendSuccess(res, 200, 'Grievance escalated to the HOD.', { request: populated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { approveRequest, rejectRequest, returnRequest, escalateRequest };

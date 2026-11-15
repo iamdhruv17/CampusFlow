@@ -1,18 +1,37 @@
 const crypto = require('crypto');
-const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
-const cookieOptions = () => ({ httpOnly: false, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000, path: '/' });
-function issueCsrfToken(res) {
+
+const CSRF_COOKIE = 'csrfToken';
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+const cookieOptions = () => ({
+  httpOnly: false,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: '/',
+});
+
+const issueCsrfToken = (res) => {
   const token = crypto.randomBytes(32).toString('hex');
-  res.cookie('csrfToken', token, cookieOptions());
+  res.cookie(CSRF_COOKIE, token, cookieOptions());
   return token;
-}
-function requireCsrfToken(req, res, next) {
-  if (SAFE.has(req.method) || !req.cookies?.token) return next();
-  const cookie = req.cookies?.csrfToken;
-  const header = req.get('x-csrf-token');
-  if (!cookie || !header || cookie.length !== header.length || !crypto.timingSafeEqual(Buffer.from(cookie), Buffer.from(header))) {
-    return res.status(403).json({ success: false, message: 'Invalid CSRF token. Refresh and try again.' });
+};
+
+const requireCsrfToken = (req, res, next) => {
+  if (SAFE_METHODS.has(req.method) || !req.cookies?.token) return next();
+
+  const cookieToken = req.cookies[CSRF_COOKIE];
+  const headerToken = req.get('x-csrf-token');
+  if (
+    !cookieToken ||
+    !headerToken ||
+    cookieToken.length !== headerToken.length ||
+    !crypto.timingSafeEqual(Buffer.from(cookieToken), Buffer.from(headerToken))
+  ) {
+    return res.status(403).json({ success: false, message: 'Invalid CSRF token.' });
   }
+
   next();
-}
-module.exports = { issueCsrfToken, requireCsrfToken, cookieOptions };
+};
+
+module.exports = { CSRF_COOKIE, issueCsrfToken, requireCsrfToken, cookieOptions };

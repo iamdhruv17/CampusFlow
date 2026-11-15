@@ -1,77 +1,79 @@
-# CampusFlow — Member 2 Complete Handover
+# CampusFlow – College Academic Request & Approval Management System
 
-This is the cumulative project after Member 2. It retains Member 1's authentication and profile module and adds Student Academic Request Management.
+CampusFlow is a web-based application designed to digitize and simplify academic request management in colleges and universities. It replaces traditional paper-based processes with a centralized platform where students can submit academic requests, upload supporting documents, track their progress, and receive updates.
 
-## Features available
-### Member 1 — Authentication & User Management
-- Student registration; public registration cannot assign privileged roles.
-- Login/logout using signed JWT in HttpOnly cookie.
-- bcrypt password hashing, session restoration, protected routes, role authorization and CSRF protection.
-- Profile viewing/updating and password change.
+Faculty members and administrators can review and manage requests through role-based dashboards, making the approval process more organized, transparent, and efficient.
 
-### Member 2 — Student Academic Request Management
-- Student request creation and server-side validation.
-- Attendance correction, medical leave, event participation and general academic request categories.
-- Student request list, status filter, details, dashboard summary and returned-request resubmission.
-- Server-side ownership checks on every student request query.
+## Problem Statement
 
-## Technology
-React + Vite, React Router, Axios, Node.js, Express, MongoDB/Mongoose, JWT, bcryptjs.
+In many educational institutions, students still depend on physical forms, paperwork, and in-person visits to faculty members for academic activities such as attendance corrections, event participation credits, and medical leave approvals.
 
-## Setup
-Prerequisites: Node.js 20+ recommended and MongoDB local or Atlas.
+These processes can be time-consuming, difficult to track, and lack transparency.
 
-```bash
-npm run install:all
-```
+CampusFlow addresses these challenges by providing a centralized digital platform for submitting, reviewing, and managing academic requests.
 
-Copy `server/.env.example` to `server/.env`, set `MONGODB_URI`, a strong `JWT_SECRET` (32+ characters), and `FRONTEND_URL=http://localhost:5173`. Do not commit `.env`.
+## Key Features
 
-Run in separate terminals:
-```bash
-npm run server
-```
-```bash
-npm run client
-```
+- **Online Request Submission:** Students can submit academic requests without physical paperwork.
+- **Multiple Request Categories:** Supports Attendance Correction, Event Attendance / Participation Credit, Medical Leave, and Other Academic Grievances.
+- **Document Uploads:** Students can attach supporting documents such as medical certificates and event proofs.
+- **Multi-Level Approval Workflow:** Requests are automatically routed to the appropriate faculty members and authorities.
+- **Request Tracking:** Students can monitor request status and view approval history and remarks.
+- **Return and Resubmission:** Students can correct and resubmit requests returned by reviewers.
+- **Role-Based Dashboards:** Separate dashboards provide relevant functionality for students, faculty, and administrators.
+- **Notifications:** Users receive in-app updates about request assignments and workflow progress.
+- **Administration:** Admins can manage user accounts, roles, and faculty responsibilities.
 
-Open `http://localhost:5173`; API health check: `http://localhost:5000/api/health`.
+## User Roles
 
-## API
-| Method | Endpoint | Purpose | Auth |
-|---|---|---|---|
-| GET | `/api/health` | Health check | No |
-| POST | `/api/auth/register` | Student registration | No |
-| POST | `/api/auth/login` | Login | No |
-| POST | `/api/auth/logout` | Logout | Yes + CSRF |
-| GET | `/api/auth/me` | Restore session | Yes |
-| GET/PUT | `/api/users/profile` | Own profile | Yes (PUT + CSRF) |
-| GET | `/api/requests/summary` | Student request counts | Student + CSRF not required |
-| GET | `/api/requests` | Own request list/filter | Student |
-| POST | `/api/requests` | Submit request | Student + CSRF |
-| GET | `/api/requests/:id` | Own request detail | Student |
-| PATCH | `/api/requests/:id/resubmit` | Resubmit returned request | Student + CSRF |
+CampusFlow supports seven user roles:
 
-### Student request payload
-```json
-{
-  "category": "attendance_correction",
-  "title": "Correct my attendance",
-  "description": "Please review my attendance for the database systems lecture on Monday."
-}
-```
-Supported categories: `attendance_correction`, `medical_leave`, `event_participation`, `general_academic`.
+| Role | Responsibilities |
+|---|---|
+| Student | Submit requests, upload documents, track status, and resubmit returned requests. |
+| Teacher | Review and process assigned academic requests. |
+| Class Coordinator | Handle assigned class responsibilities and the first stage of medical leave approval. |
+| Mentor | Review and process medical leave requests at the mentor stage. |
+| HOD | Handle departmental requests and the HOD stage of medical leave approval. |
+| Dean | Provide final approval for medical leave requests. |
+| Admin | Manage users, faculty assignments, and monitor system-wide activity. |
 
-## Tests and build
-```bash
-npm test --prefix server
-npm run build --prefix client
-```
+## Approval Workflows
 
-Tests require installed dependencies. The test suite includes Member 1 profile tests and Member 2 request-validation tests. API integration tests against a running MongoDB are a further verification step.
+CampusFlow supports different approval workflows depending on the request category.
 
-## Next handover
-Member 3 implements faculty and multi-level approval workflow. Preserve current statuses: `submitted`, `under_review`, `returned`, `approved`, `rejected`. Member 2's resubmission endpoint relies on `returned`.
+- **Attendance Correction:** Routed to the appropriate subject faculty or eligible departmental authority.
+- **Event Attendance / Participation Credit:** Routed to the appropriate faculty member or class authority for verification.
+- **Medical Leave:** Follows a sequential approval process:
 
-## Member 3 — Faculty Approval Workflow
-Faculty/mentor, coordinator, HOD and Dean users can review assigned requests from the Approvals workspace. Decisions are recorded with remarks and timestamps. Approval advances sequentially through mentor → coordinator → HOD → Dean. Returned and rejected requests stop the current workflow.
+  **Student → Class Coordinator → Mentor → HOD → Dean**
+
+- **Other Academic Grievances:** Routed to the appropriate departmental authority.
+
+Requests can be approved, rejected, or returned for correction by authorized reviewers. Approval actions and remarks are recorded in the request history.
+
+## Technology Stack
+
+| Component | Technologies |
+|---|---|
+| Frontend | React.js, Vite, Tailwind CSS |
+| Routing | React Router DOM |
+| Backend | Node.js, Express.js |
+| Database | MongoDB, Mongoose |
+| Authentication | JWT, HttpOnly Cookies, bcryptjs |
+| File Storage | Cloudinary |
+| HTTP Client | Axios |
+| Icons | Lucide React |
+
+## Future Scope
+
+- AI-assisted document verification.
+- Email and push notifications.
+- Advanced analytics and reporting.
+- Additional academic workflow integrations.
+
+## License
+
+This project is licensed under the ISC License.
+
+**CampusFlow – Making Academic Request Management Simple, Transparent, and Paperless.**

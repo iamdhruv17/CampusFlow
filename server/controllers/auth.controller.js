@@ -1,41 +1,118 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { notifyStudent } = require('../services/notification.service');
+const { sendSuccess, sendError } = require('../utils/apiResponse');
 const { issueCsrfToken, cookieOptions } = require('../middleware/csrf.middleware');
-const COOKIE = { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', maxAge: 7 * 24 * 60 * 60 * 1000, path: '/' };
-const signToken = (user) => jwt.sign({ id: user._id, tokenVersion: user.tokenVersion || 0 }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-const setSession = (res, user) => { res.cookie('token', signToken(user), COOKIE); issueCsrfToken(res); };
-const validPassword = (password) => typeof password === 'string' && password.length >= 8 && password.length <= 72;
 
-async function register(req, res, next) {
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
+const signToken = (userId, tokenVersion = 0) => {
+  return jwt.sign({ id: userId, tokenVersion }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  });
+};
+
+// POST /api/auth/register  — students only
+const register = async (req, res, next) => {
   try {
-    const { name, email, password, branch = '', year, section = '', rollNumber = '' } = req.body || {};
-    if (!name?.trim() || !email?.trim() || !validPassword(password)) return res.status(400).json({ success: false, message: 'Name, valid email and password (8–72 characters) are required.' });
-    if (name.trim().length < 2) return res.status(400).json({ success: false, message: 'Name must contain at least 2 characters.' });
-    if (year !== undefined && year !== '' && (!Number.isInteger(Number(year)) || Number(year) < 1 || Number(year) > 4)) return res.status(400).json({ success: false, message: 'Year must be between 1 and 4.' });
-    const normalizedEmail = email.trim().toLowerCase();
-    if (await User.findOne({ email: normalizedEmail })) return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
-    // Public sign-up always creates a student. Never accept a role from the browser.
-    const user = await User.create({ name: name.trim(), email: normalizedEmail, passwordHash: password, role: 'student', branch, year: year ? Number(year) : undefined, section, rollNumber, department: branch });
-    setSession(res, user);
-    return res.status(201).json({ success: true, message: 'Your CampusFlow account has been created.', user: user.toPublicProfile() });
-  } catch (err) { if (err.code === 11000) return res.status(409).json({ success: false, message: 'An account with this email already exists.' }); next(err); }
-}
-async function login(req, res, next) {
+    const { name, email, password, branch, year, section, rollNumber, department } = req.body;
+
+    // Role is ALWAYS 'student' on public registration — never trust client input
+    const existing = await User.findOne({ email: email.toLowerCase() });
+    if (existing) {
+      return sendError(res, 409, 'An account with this email already exists.');
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      passwordHash: password, // will be hashed by pre-save hook
+      role: 'student',         // hardcoded — cannot be overridden
+      branch,
+      year: Number(year),
+      section,
+      rollNumber,
+      department: department || branch,
+    });
+
+    // Welcome notification
+    await notifyStudent(
+      { requesterId: user._id, _id: null },
+      `Welcome to CampusFlow, ${name}! You can now submit academic requests.`,
+      'general'
+    ).catch(() => {});
+
+    const token = signToken(user._id, user.tokenVersion);
+    res.cookie('token', token, COOKIE_OPTIONS);
+    issueCsrfToken(res);
+
+    sendSuccess(res, 201, 'Registration successful.', { user: user.toPublicProfile() });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/auth/login
+const login = async (req, res, next) => {
   try {
-    const email = req.body?.email?.trim().toLowerCase(); const password = req.body?.password;
-    if (!email || !password) return res.status(400).json({ success: false, message: 'Email and password are required.' });
-    const user = await User.findOne({ email }).select('+passwordHash +tokenVersion');
-    if (!user || !(await user.comparePassword(password))) return res.status(401).json({ success: false, message: 'Incorrect email or password.' });
-    if (!user.isActive) return res.status(403).json({ success: false, message: 'Your account is inactive. Contact an administrator.' });
-    setSession(res, user);
-    return res.json({ success: true, message: 'Welcome back to CampusFlow.', user: user.toPublicProfile() });
-  } catch (err) { next(err); }
-}
-function logout(_req, res) {
-  res.clearCookie('token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', path: '/' });
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return sendError(res, 400, 'Email and password are required.');
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+passwordHash +tokenVersion');
+    if (!user) {
+      return sendError(res, 401, 'Invalid email or password.');
+    }
+
+    if (!user.isActive) {
+      return sendError(res, 403, 'Account is deactivated. Please contact the administrator.');
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return sendError(res, 401, 'Invalid email or password.');
+    }
+
+    const token = signToken(user._id, user.tokenVersion);
+    res.cookie('token', token, COOKIE_OPTIONS);
+    issueCsrfToken(res);
+
+    sendSuccess(res, 200, 'Login successful.', { user: user.toPublicProfile() });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/auth/logout
+const logout = (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  });
   res.clearCookie('csrfToken', cookieOptions());
-  return res.json({ success: true, message: 'You have been logged out.' });
-}
-function csrf(_req, res) { const csrfToken = issueCsrfToken(res); return res.json({ success: true, csrfToken }); }
-function me(req, res) { return res.json({ success: true, user: req.user.toPublicProfile() }); }
-module.exports = { register, login, logout, csrf, me };
+  sendSuccess(res, 200, 'Logged out successfully.');
+};
+
+// GET /api/auth/me
+const getMe = async (req, res, next) => {
+  try {
+    const user = typeof req.user.toPublicProfile === 'function'
+      ? req.user.toPublicProfile()
+      : req.user;
+    delete user.passwordHash;
+    delete user.tokenVersion;
+    sendSuccess(res, 200, 'User retrieved.', { user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, login, logout, getMe };

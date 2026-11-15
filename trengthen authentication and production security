@@ -1,0 +1,10 @@
+ server/app.js                         | 11 [32m+++[m[31m--[m
+ server/controllers/auth.controller.js |  7 [32m+++[m[31m-[m
+ server/middleware/auth.middleware.js  |  6 [32m++[m[31m-[m
+ server/models/User.js                 |  1 [32m+[m
+ server/routes/admin.routes.js         |  2 [32m+[m[31m-[m
+ server/routes/user.routes.js          |  2 [32m+[m[31m-[m
+ server/server.js                      | 17 [32m++++++++[m
+ server/test/security.test.js          | 76 [32m++++++++++++++++++++++++++++++++++[m[31m-[m
+ server/test/user-profile.test.js      | 53 [32m+++++++++++++++++++++++[m[31m-[m
+ 9 files changed, 165 insertions(+), 10 deletions(-)

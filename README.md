@@ -1,81 +1,79 @@
-# CampusFlow
+# CampusFlow – College Academic Request & Approval Management System
 
-CampusFlow is a college project for managing academic requests online. Students can raise a request, attach supporting documents and check its status without having to follow up through paper forms. Faculty members and administrators get separate views to review requests and handle approvals.
+CampusFlow is a web-based application designed to digitize and simplify academic request management in colleges and universities. It replaces traditional paper-based processes with a centralized platform where students can submit academic requests, upload supporting documents, track their progress, and receive updates.
 
-## What it covers
+Faculty members and administrators can review and manage requests through role-based dashboards, making the approval process more organized, transparent, and efficient.
 
-- Attendance correction requests
-- Event participation and attendance credit
-- Medical leave applications
-- Other academic grievances
-- Supporting document uploads
-- Request status, reviewer remarks and approval history
-- Returning requests for corrections and resubmission
-- Notifications and role-based dashboards
+## Problem Statement
 
-Students submit requests and track their progress. Teachers and other staff review requests assigned to them, while admins manage users and faculty assignments.
+In many educational institutions, students still depend on physical forms, paperwork, and in-person visits to faculty members for academic activities such as attendance corrections, event participation credits, and medical leave approvals.
 
-Medical leave uses a multi-step approval route:
+These processes can be time-consuming, difficult to track, and lack transparency.
 
-`Student → Class Coordinator → Mentor → HOD → Dean`
+CampusFlow addresses these challenges by providing a centralized digital platform for submitting, reviewing, and managing academic requests.
 
-## Tech stack
+## Key Features
 
-| Part | Tools |
-| --- | --- |
-| Frontend | React, Vite, Tailwind CSS |
-| Backend | Node.js, Express |
+- **Online Request Submission:** Students can submit academic requests without physical paperwork.
+- **Multiple Request Categories:** Supports Attendance Correction, Event Attendance / Participation Credit, Medical Leave, and Other Academic Grievances.
+- **Document Uploads:** Students can attach supporting documents such as medical certificates and event proofs.
+- **Multi-Level Approval Workflow:** Requests are automatically routed to the appropriate faculty members and authorities.
+- **Request Tracking:** Students can monitor request status and view approval history and remarks.
+- **Return and Resubmission:** Students can correct and resubmit requests returned by reviewers.
+- **Role-Based Dashboards:** Separate dashboards provide relevant functionality for students, faculty, and administrators.
+- **Notifications:** Users receive in-app updates about request assignments and workflow progress.
+- **Administration:** Admins can manage user accounts, roles, and faculty responsibilities.
+
+## User Roles
+
+CampusFlow supports seven user roles:
+
+| Role | Responsibilities |
+|---|---|
+| Student | Submit requests, upload documents, track status, and resubmit returned requests. |
+| Teacher | Review and process assigned academic requests. |
+| Class Coordinator | Handle assigned class responsibilities and the first stage of medical leave approval. |
+| Mentor | Review and process medical leave requests at the mentor stage. |
+| HOD | Handle departmental requests and the HOD stage of medical leave approval. |
+| Dean | Provide final approval for medical leave requests. |
+| Admin | Manage users, faculty assignments, and monitor system-wide activity. |
+
+## Approval Workflows
+
+CampusFlow supports different approval workflows depending on the request category.
+
+- **Attendance Correction:** Routed to the appropriate subject faculty or eligible departmental authority.
+- **Event Attendance / Participation Credit:** Routed to the appropriate faculty member or class authority for verification.
+- **Medical Leave:** Follows a sequential approval process:
+
+  **Student → Class Coordinator → Mentor → HOD → Dean**
+
+- **Other Academic Grievances:** Routed to the appropriate departmental authority.
+
+Requests can be approved, rejected, or returned for correction by authorized reviewers. Approval actions and remarks are recorded in the request history.
+
+## Technology Stack
+
+| Component | Technologies |
+|---|---|
+| Frontend | React.js, Vite, Tailwind CSS |
+| Routing | React Router DOM |
+| Backend | Node.js, Express.js |
 | Database | MongoDB, Mongoose |
-| Authentication | JWT, HttpOnly cookies |
-| File uploads | Cloudinary |
-| Other libraries | Axios, React Router, Lucide React |
+| Authentication | JWT, HttpOnly Cookies, bcryptjs |
+| File Storage | Cloudinary |
+| HTTP Client | Axios |
+| Icons | Lucide React |
 
-## Running locally
+## Future Scope
 
-You'll need Node.js, npm and a MongoDB database. Cloudinary credentials are needed if you want to test file uploads.
-
-1. Clone the repository and open the project folder.
-2. Install the frontend and backend dependencies:
-
-   ```bash
-   npm run install:all
-   ```
-
-3. Copy `server/.env.example` to `server/.env` and fill in the MongoDB connection string, JWT secret and any Cloudinary credentials. Copy `client/.env.example` to `client/.env` if you need to configure the API URL.
-4. Start the backend:
-
-   ```bash
-   npm run server
-   ```
-
-5. In another terminal, start the frontend:
-
-   ```bash
-   npm run client
-   ```
-
-The frontend normally runs at `http://localhost:5173`, and the API at `http://localhost:5000/api`.
-
-For local demo data, you can run `npm run seed`. **This clears existing application data in the configured database**, so don't run it against a database you need to keep.
-
-## Project structure
-
-```text
-client/    React frontend, pages and API services
-server/    Express API, database models and application logic
-```
-
-## Checks
-
-The backend has separate test scripts for the request lifecycle, user profiles and security. For example:
-
-```bash
-npm run test:requests --prefix server
-npm run test:profile --prefix server
-npm run test:security --prefix server
-npm run build:client
-```
+- AI-assisted document verification.
+- Email and push notifications.
+- Advanced analytics and reporting.
+- Additional academic workflow integrations.
 
 ## License
 
-ISC (as declared in the project package files).
+This project is licensed under the ISC License.
+
+**CampusFlow – Making Academic Request Management Simple, Transparent, and Paperless.**
